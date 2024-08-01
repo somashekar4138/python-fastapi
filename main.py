@@ -6,7 +6,6 @@ from pydantic import BaseModel
 from typing import Optional
 import bcrypt 
 
-
 # Initialize Prisma client
 prisma = Prisma()
 
@@ -44,17 +43,6 @@ def startup():
 def shutdown():
     logging.info("Disconnecting from the database...")
     prisma.disconnect()
-
-@app.get("/")
-async def root():
-    db = Prisma()
-    db.connect()
-
-    posts = db.user.find_many()
-
-    db.disconnect()
-
-    return posts
 
 @app.post("/users")
 def create_user(dto: CreateClientDto):
