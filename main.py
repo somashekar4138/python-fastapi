@@ -1,11 +1,16 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from prisma import Prisma
 import logging
 from pydantic import BaseModel
-from typing import Optional
 import bcrypt 
+from typing import Annotated
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from typing import Optional
+from app.auth.auth_bearer import JWTBearer
+from app.auth.auth_handler import signJWT
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 # Initialize Prisma client
 prisma = Prisma()
 
@@ -65,9 +70,18 @@ def login(dto: UserLoginDto):
     try:
         user = prisma.user.find_unique(where={"email": dto.email})
         if bcrypt.checkpw(dto.password.encode('utf-8'), user.password.encode('utf-8')):
-            return user
+            return signJWT(user.email)
         else:
             raise HTTPException(status_code=401, detail="Unauthorized")
+    except Exception as e:
+        logging.error(f"Error creating user: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+    
+@app.get("/my-details",dependencies=[Depends(JWTBearer())])
+def get_my_details(token: str = Depends(JWTBearer())):
+    try:
+        user = prisma.user.find_unique(where={"email": token})
+        return user
     except Exception as e:
         logging.error(f"Error creating user: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
